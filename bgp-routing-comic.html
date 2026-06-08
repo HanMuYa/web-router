@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>网络路由大冒险 - 漫画讲解</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --paper:#FFF8F0;--ink:#1A1A2E;--blue:#3B82F6;--orange:#F97316;
+  --green:#22C55E;--red:#EF4444;--purple:#8B5CF6;--gray:#6B7280;
+  --panel-bg:#fff;--shadow:0 4px 20px rgba(0,0,0,0.12);
+}
+body{
+  font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+  background:var(--paper);color:var(--ink);min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;
+  padding:20px 16px 80px;
+}
+h1.title{
+  font-size:28px;font-weight:900;letter-spacing:2px;
+  text-align:center;margin-bottom:4px;
+  text-shadow:2px 2px 0 rgba(0,0,0,0.06);
+}
+.subtitle{font-size:13px;color:var(--gray);text-align:center;margin-bottom:24px;letter-spacing:1px}
+
+.comic-page{
+  width:100%;max-width:520px;display:flex;flex-direction:column;gap:16px;
+}
+
+.panel{
+  background:var(--panel-bg);border:3px solid var(--ink);border-radius:12px;
+  padding:16px;position:relative;overflow:hidden;
+  box-shadow:var(--shadow);opacity:0;transform:translateY(30px);
+  transition:opacity 0.5s,transform 0.5s;
+}
+.panel.visible{opacity:1;transform:translateY(0)}
+.panel.highlight{border-color:var(--orange);box-shadow:0 0 0 2px var(--orange),var(--shadow)}
+
+.panel-number{
+  position:absolute;top:-1px;left:12px;background:var(--ink);color:#fff;
+  font-size:11px;font-weight:700;padding:2px 10px;border-radius:0 0 6px 6px;
+  letter-spacing:1px;
+}
+
+.char-row{display:flex;align-items:flex-start;gap:12px;margin-bottom:10px}
+.char-avatar{
+  width:48px;height:48px;border-radius:50%;border:2px solid var(--ink);
+  display:flex;align-items:center;justify-content:center;font-size:22px;
+  flex-shrink:0;
+}
+.char-avatar.hero{background:#DBEAFE}
+.char-avatar.isp{background:#FEF3C7}
+.char-avatar.hacker{background:#F3E8FF}
+.char-avatar.packet{background:#DCFCE7}
+
+.speech-bubble{
+  background:#fff;border:2px solid var(--ink);border-radius:16px;
+  padding:10px 14px;position:relative;font-size:14px;line-height:1.7;
+  flex:1;
+}
+.speech-bubble::before{
+  content:'';position:absolute;left:-10px;top:14px;
+  border:6px solid transparent;border-right-color:var(--ink);
+}
+.speech-bubble::after{
+  content:'';position:absolute;left:-7px;top:15px;
+  border:5px solid transparent;border-right-color:#fff;
+}
+
+.thought-bubble{
+  background:#fff;border:2px dashed var(--gray);border-radius:20px;
+  padding:10px 16px;font-size:13px;line-height:1.7;color:var(--gray);
+  font-style:italic;margin:8px 0 8px 60px;
+}
+
+.scene-svg{width:100%;margin:8px 0;border-radius:8px}
+
+.label-tag{
+  display:inline-block;padding:2px 8px;border-radius:4px;
+  font-size:12px;font-weight:600;
+}
+.label-tag.blue{background:#DBEAFE;color:#1D4ED8}
+.label-tag.orange{background:#FFF7ED;color:#C2410C}
+.label-tag.green{background:#DCFCE7;color:#15803D}
+.label-tag.red{background:#FEE2E2;color:#DC2626}
+.label-tag.purple{background:#F3E8FF;color:#7C3AED}
+
+.key-point{
+  background:linear-gradient(135deg,#FEF3C7,#FDE68A);
+  border:2px solid var(--orange);border-radius:10px;
+  padding:12px 14px;margin:8px 0;font-size:13px;line-height:1.7;
+}
+.key-point i{color:var(--orange);margin-right:4px}
+
+.comparison{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0;
+}
+.comparison .col{
+  border:2px solid;border-radius:8px;padding:10px;font-size:13px;line-height:1.6;
+}
+.comparison .col.can{border-color:var(--green);background:#F0FDF4}
+.comparison .col.cant{border-color:var(--red);background:#FEF2F2}
+.comparison .col h4{font-size:13px;margin-bottom:4px}
+
+.nav-bar{
+  position:fixed;bottom:0;left:0;right:0;background:rgba(255,248,240,0.95);
+  backdrop-filter:blur(8px);border-top:2px solid var(--ink);
+  padding:10px 20px;display:flex;align-items:center;justify-content:center;gap:12px;
+  z-index:100;
+}
+.nav-bar button{
+  border:2px solid var(--ink);border-radius:8px;padding:6px 18px;
+  font-size:14px;font-weight:600;cursor:pointer;
+  background:#fff;transition:all 0.15s;
+}
+.nav-bar button:hover{background:var(--ink);color:#fff}
+.nav-bar button:disabled{opacity:0.3;cursor:not-allowed;background:#fff;color:var(--ink)}
+.nav-bar .page-info{font-size:13px;color:var(--gray);min-width:60px;text-align:center}
+
+.sfx{
+  font-size:24px;font-weight:900;letter-spacing:3px;
+  color:var(--red);text-shadow:2px 2px 0 #FCA5A5;
+  text-align:center;margin:4px 0;
+}
+
+.anim-float{animation:floaty 2s ease-in-out infinite}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+
+.anim-dash{animation:dashMove 1.5s linear infinite}
+@keyframes dashMove{to{stroke-dashoffset:-20}}
+
+.step-indicator{
+  display:flex;gap:4px;justify-content:center;margin-bottom:16px;
+}
+.step-dot{
+  width:8px;height:8px;border-radius:50%;background:#D1D5DB;
+  transition:background 0.3s;
+}
+.step-dot.active{background:var(--ink)}
+.step-dot.done{background:var(--green)}
+
+@media(prefers-reduced-motion:reduce){
+  .panel{transition:opacity 0.2s;transform:none!important}
+  .anim-float,.anim-dash{animation:none}
+}
+</style>
+</head>
+<body>
+
+<h1 class="title">网络路由大冒险</h1>
+<p class="subtitle">BGP & 运营商内部路由 - 漫画讲解</p>
+
+<div class="step-indicator" id="stepIndicator"></div>
+
+<div class="comic-page" id="comicPage"></div>
+
+<div class="nav-bar">
+  <button id="btnPrev" onclick="goPage(-1)"><i class="bi bi-chevron-left"></i> 上一话</button>
+  <span class="page-info" id="pageInfo">1 / 7</span>
+  <button id="btnNext" onclick="goPage(1)">下一话 <i class="bi bi-chevron-right"></i></button>
+</div>
+
+<script>
+const pages = [
+// ====== PAGE 1: 开场 ======
+{
+html: `
+<div class="panel">
+  <span class="panel-number">第1话</span>
+  <div class="char-row">
+    <div class="char-avatar hero anim-float"><i class="bi bi-person-fill"></i></div>
+    <div class="speech-bubble">
+      嘿！你有没有想过——<br>
+      当你在浏览器输入一个网址，<br>
+      数据包是怎么跨越千山万水到达目的地的？
+    </div>
+  </div>
+  <div class="char-row">
+    <div class="char-avatar packet"><i class="bi bi-box-seam-fill"></i></div>
+    <div class="speech-bubble">
+      我就是一个数据包！<br>
+      让我带你走一趟 <b>网络路由大冒险</b>！
+    </div>
+  </div>
+  <svg class="scene-svg" viewBox="0 0 480 100">
+    <rect x="10" y="35" width="60" height="30" rx="6" fill="#DBEAFE" stroke="#1A1A2E" stroke-width="2"/>
+    <text x="40" y="55" text-anchor="middle" font-size="11" font-weight="600">你的电脑</text>
+    <line x1="70" y1="50" x2="130" y2="50" stroke="#1A1A2E" stroke-width="2" stroke-dasharray="6 4" class="anim-dash"/>
+    <circle cx="155" cy="50" r="20" fill="#DCFCE7" stroke="#1A1A2E" stroke-width="2"/>
+    <text x="155" y="54" text-anchor="middle" font-size="9" font-weight="600">AS</text>
+    <line x1="175" y1="50" x2="235" y2="50" stroke="#1A1A2E" stroke-width="2" stroke-dasharray="6 4" class="anim-dash"/>
+    <circle cx="260" cy="50" r="20" fill="#FEF3C7" stroke="#1A1A2E" stroke-width="2"/>
+    <text x="260" y="54" text-anchor="middle" font-size="9" font-weight="600">AS</text>
+    <line x1="280" y1="50" x2="340" y2="50" stroke="#1A1A2E" stroke-width="2" stroke-dasharray="6 4" class="anim-dash"/>
+    <circle cx="365" cy="50" r="20" fill="#F3E8FF" stroke="#1A1A2E" stroke-width="2"/>
+    <text x="365" y="54" text-anchor="middle" font-size="9" font-weight="600">AS</text>
+    <line x1="385" y1="50" x2="420" y2="50" stroke="#1A1A2E" stroke-width="2" stroke-dasharray="6 4" class="anim-dash"/>
+    <rect x="420" y="35" width="50" height="30" rx="6" fill="#FEE2E2" stroke="#1A1A2E" stroke-width="2"/>
+    <text x="445" y="55" text-anchor="middle" font-size="11" font-weight="600">目标</text>
+  </svg>
+</div>
+
+<div class="panel">
+  <div class="char-row">
+    <div class="char-avatar hero"><i class="bi bi-person-fill"></i></div>
+    <div class="speech-bubble">
+      每个圆圈就是一个 <b>AS（自治系统）</b>，<br>
+      就像快递网络里的一个个<b>分拣中心</b>。
+    </div>
+  </div>
+  <div class="key-point">
+    <i class="bi bi-lightbulb-fill"></i>
+    <b>AS = 自治系统</b> = 一个独立管理的网络，通常属于一个运营商或大机构。<br>
+    每个 AS 都有一个编号，比如 AS4134（中国电信）、AS4837（中国联通）。
+  </div>
+</div>
+`
+},
+
+// ====== PAGE 2: BGP 是什么 ======
+{
+html: `
+<div class="panel">
+  <span class="panel-number">第2话</span>
+  <div class="char-row">
+    <div class="char-avatar packet anim-float"><i class="bi bi-box-seam-fill"></i></div>
+    <div class="speech-bubble">
+      AS 和 AS 之间怎么知道对方的存在？<br>
+      靠的就是——<b>BGP</b>！
+    </div>
+  </div>
+  <div class="sfx">BGP!</div>
+  <div class="key-point">
+    <i class="bi bi-lightbulb-fill"></i>
+    <b>BGP = 边界网关协议</b>，是互联网的"导航系统"。<br>
+    每个 AS 通过 BGP 向全世界广播："我管着哪些 IP 地址，大家可以怎么到达我！"
+  </div>
+</div>
+
+<div class="panel">
+  <div class="char-row">
+    <div class="char-avatar hero"><i class="bi bi-person-fill"></i></div>
+    <div class="speech-bubble">
+      所以 BGP 的信息是公开的？<br>
+      谁都能看到？
+    </div>
+  </div>
+  <div class="char-row">
+    <div class="char-avatar packet"><i class="bi bi-box-seam-fill"></i></div>
+    <div class="speech-bubble">
+      没错！<b>BGP 就像快递公司的公开时刻表</b>，<br>
+      每个分拣中心都能看到：<br>
+      从 A 中心到 B 中心要经过哪些站。
+    </div>
+  </div>
+  <svg class="scene-svg" viewBox="0 0 480 120">
+    <rect x="20" y="10" width="440" height="100" rx="10" fill="#F0FDF4" stroke="#15803D" stroke-width="2" stroke-dasharray="8 4"/>
+    <text x="240" y="30" text-anchor="middle" font-size="12" font-weight="600" fill="#15803D">BGP 公开信息 - 人人可见</text>
+    <rect x="40" y="45" width="90" height="28" rx="6" fill="#DBEAFE" stroke="#1A1A2E" stroke-width="1.5"/>
+    <text x="85" y="63" text-anchor="middle" font-size="10" font-weight="600">AS4837 联通</text>
+    <text x="145" y="63" font-size="14" fill="#15803D">→</text>
+    <rect x="160" y="45" width="90" height="28" rx="6" fill="#FEF3C7" stroke="#1A1A2E" stroke-width="1.5"/>
+    <text x="205" y="63" text-anchor="middle" font-size="10" font-weight="600">AS4808 中转</text>
+    <text x="265" y="63" font-size="14" fill="#15803D">→</text>
+    <rect x="280" y="45" width="100" height="28" rx="6" fill="#F3E8FF" stroke="#1A1A2E" stroke-width="1.5"/>
+    <text x="330" y="63" text-anchor="middle" font-size="10" font-weight="600">AS137801 目标</text>
+    <text x="240" y="95" text-anchor="middle" font-size="11" fill="#15803D">这条路径，全世界都能查到！</text>
+  </svg>
+</div>
+`
+},
+
+// ====== PAGE 3: 查 AS 路径 ======
+{
+html: `
+<div class="panel">
+  <span class="panel-number">第3话</span>
+  <div class="char-row">
+    <div class="char-avatar hero"><i class="bi bi-person-fill"></i></div>
+    <div class="speech-bubble">
+      那我随便给个 IP，<br>
+      我能知道它经过哪些 AS 吗？
+    </div>
+  </div>
+  <div class="char-row">
+    <div class="char-avatar packet"><i class="bi bi-box-seam-fill"></i></div>
+    <div class="speech-bubble">
+      当然！你不需要认识任何运营商，<br>
+      用这些公开工具就能查——
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:6px;margin:8px 0">
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#F9FAFB;border-radius:8px;border:1px solid #E5E7EB">
+      <i class="bi bi-globe2" style="font-size:20px;color:var(--blue)"></i>
+      <div><b>bgp.he.net</b><br><span style="font-size:12px;color:var(--gray)">Hurricane Electric 的 BGP 查询</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#F9FAFB;border-radius:8px;border:1px solid #E5E7EB">
+      <i class="bi bi-terminal" style="font-size:20px;color:var(--green)"></i>
+      <div><b>traceroute / mtr</b><br><span style="font-size:12px;color:var(--gray)">命令行直接探测每一跳</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#F9FAFB;border-radius:8px;border:1px solid #E5E7EB">
+      <i class="bi bi-database" style="font-size:20px;color:var(--purple)"></i>
+      <div><b>RouteViews / RIPE RIS</b><br><span style="font-size:12px;color:var(--gray)">全球 BGP 路由采集数据</span></div>
+    </div>
+  </div>
+  <div class="key-point">
+    <i class="bi bi-lightbulb-fill"></i>
+    <b>AS 级别的路径 = 公开信息</b><br>
+    就像查快递的"中转站记录"，不经过快递公司同意也能查到。
+  </div>
+</div>
+`
+},
+
+// ====== PAGE 4: 运营商内部 ======
+{
+html: `
+<div class="panel">
+  <span class="panel-number">第4话</span>
+  <div class="char-row">
+    <div class="char-avatar hero"><i class="bi bi-person-fill"></i></div>
+    <div class="speech-bubble">
+      那 AS 内部呢？<br>
+      数据包在运营商的网里具体走哪条线？
+    </div>
+  </div>
+  <div class="char-row">
+    <div class="char-avatar isp"><i class="bi bi-building-fill"></i></div>
+    <div class="speech-bubble">
+      嘿嘿，那就是我的地盘了！<br>
+      <b>我内部怎么走，关你什么事！</b>
+    </div>
+  </div>
+  <div class="sfx">机密!</div>
+  <svg class="scene-svg" viewBox="0 0 480 160">
+    <rect x="60" y="10" width="360" height="140" rx="16" fill="#FEF3C7" stroke="#D97706" stroke-width="2.5"/>
+    <text x="240" y="32" text-anchor="middle" font-size="12" font-weight="700" fill="#92400E">AS4134 中国电信 - 内部网络</text>
+    <circle cx="120" cy="70" r="12" fill="#FDE68A" stroke="#92400E" stroke-width="1.5"/>
+    <text x="120" y="74" text-anchor="middle" font-size="8" font-weight="600">R1</text>
+    <circle cx="240" cy="55" r="12" fill="#FDE68A" stroke="#92400E" stroke-width="1.5"/>
+    <text x="240" y="59" text-anchor="middle" font-size="8" font-weight="600">R2</text>
+    <circle cx="360" cy="70" r="12" fill="#FDE68A" stroke="#92400E" stroke-width="1.5"/>
+    <text x="360" y="74" text-anchor="middle" font-size="8" font-weight="600">R3</text>
+    <circle cx="180" cy="115" r="12" fill="#FDE68A" stroke="#92400E" stroke-width="1.5"/>
+    <text x="180" y="119" text-anchor="middle" font-size="8" font-weight="600">R4</text>
+    <circle cx="300" cy="115" r="12" fill="#FDE68A" stroke="#92400E" stroke-width="1.5"/>
+    <text x="300" y="119" text-anchor="middle" font-size="8" font-weight="600">R5</text>
+    <line x1="132" y1="67" x2="228" y2="57" stroke="#92400E" stroke-width="1" stroke-dasharray="4 3"/>
+    <line x1="252" y1="57" x2="348" y2="67" stroke="#92400E" stroke-width="1" stroke-dasharray="4 3"/>
+    <line x1="126" y1="80" x2="172" y2="107" stroke="#92400E" stroke-width="1" stroke-dasharray="4 3"/>
+    <line x1="192" y1="112" x2="288" y2="118" stroke="#92400E" stroke-width="1" stroke-dasharray="4 3"/>
+    <line x1="312" y1="107" x2="352" y2="80" stroke="#92400E" stroke-width="1" stroke-dasharray="4 3"/>
+    <line x1="188" y1="63" x2="220" y2="58" stroke="#92400E" stroke-width="1" stroke-dasharray="4 3"/>
+    <text x="240" y="148" text-anchor="middle" font-size="11" fill="#DC2626" font-weight="600">外部完全不可见！</text>
+  </svg>
+</div>
+
+<div class="panel">
+  <div class="char-row">
+    <div class="char-avatar packet"><i class="bi bi-box-seam-fill"></i></div>
+    <div class="speech-bubble">
+      运营商内部用的是 <b>IGP</b>（内部网关协议），<br>
+      常见的是 OSPF 或 IS-IS。<br>
+      这些信息<b>只在内部传递，不对外广播</b>！
+    </div>
+  </div>
+  <div class="key-point">
+    <i class="bi bi-lock-fill"></i>
+    <b>BGP vs IGP</b><br>
+    BGP = 对外广播，像快递时刻表，公开可查<br>
+    IGP = 内部导航，像公司内部通行路线，保密
+  </div>
+</div>
+`
+},
+
+// ====== PAGE 5: MPLS 黑盒 ======
+{
+html: `
+<div class="panel">
+  <span class="panel-number">第5话</span>
+  <div class="char-row">
+    <div class="char-avatar hero"><i class="bi bi-person-fill"></i></div>
+    <div class="speech-bubble">
+      那我用 traceroute 探测一下，<br>
+      不就能看到内部路径了吗？
+    </div>
+  </div>
+  <div class="char-row">
+    <div class="char-avatar isp"><i class="bi bi-building-fill"></i></div>
+    <div class="speech-bubble">
+      哈哈，天真！我用了 <b>MPLS</b>！<br>
+      你看到的只会是——
+    </div>
+  </div>
+  <div class="sfx">*** *** ***</div>
+  <div style="background:#1A1A2E;border-radius:8px;padding:12px;margin:8px 0;font-family:monospace;font-size:12px;color:#4ADE80;overflow-x:auto">
+    <div style="color:#6B7280">$ traceroute 1.2.3.4</div>
+    <div>1 &nbsp;192.168.1.1 &nbsp;<span style="color:#4ADE80">1ms</span> &nbsp;你的出口路由器</div>
+    <div>2 &nbsp;10.0.0.1 &nbsp;&nbsp;&nbsp;<span style="color:#4ADE80">5ms</span> &nbsp;运营商 PE 入口</div>
+    <div style="color:#EF4444;font-weight:700">3 &nbsp;* * *</div>
+    <div style="color:#EF4444;font-weight:700">4 &nbsp;* * *</div>
+    <div style="color:#EF4444;font-weight:700">5 &nbsp;* * *</div>
+    <div>6 &nbsp;172.16.0.1 &nbsp;<span style="color:#FBBF24">35ms</span> &nbsp;运营商 PE 出口</div>
+    <div>7 &nbsp;1.2.3.4 &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#FBBF24">36ms</span> &nbsp;目标服务器</div>
+  </div>
+  <div class="key-point">
+    <i class="bi bi-eye-slash-fill"></i>
+    <b>MPLS = 多协议标签交换</b><br>
+    运营商在内部给数据包贴标签，路由器按标签转发，不检查 IP。<br>
+    你的 ICMP 探测包直接被忽略 → 三颗星 <b>* * *</b>
+  </div>
+</div>
+`
+},
+
+// ====== PAGE 6: 能查 vs 不能查 ======
+{
+html: `
+<div class="panel">
+  <span class="panel-number">第6话</span>
+  <div class="char-row">
+    <div class="char-avatar packet"><i class="bi bi-box-seam-fill"></i></div>
+    <div class="speech-bubble">
+      来总结一下！<br>
+      什么能查，什么不能查——
+    </div>
+  </div>
+  <div class="comparison">
+    <div class="col can">
+      <h4><i class="bi bi-check-circle-fill" style="color:#22C55E"></i> 能查到</h4>
+      <span class="label-tag green">AS 路径</span><br>
+      <span class="label-tag green">每跳 IP</span><br>
+      <span class="label-tag green">延迟/丢包</span><br>
+      <span class="label-tag green">对端是谁</span><br>
+      <span style="font-size:11px;color:#15803D;margin-top:4px;display:block">用 BGP/traceroute 即可</span>
+    </div>
+    <div class="col cant">
+      <h4><i class="bi bi-x-circle-fill" style="color:#EF4444"></i> 查不到</h4>
+      <span class="label-tag red">MPLS 内部</span><br>
+      <span class="label-tag red">负载均衡选路</span><br>
+      <span class="label-tag red">物理光纤走向</span><br>
+      <span class="label-tag red">流量工程策略</span><br>
+      <span style="font-size:11px;color:#DC2626;margin-top:4px;display:block">只有运营商自己知道</span>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="char-row">
+    <div class="char-avatar hero"><i class="bi bi-person-fill"></i></div>
+    <div class="speech-bubble">
+      那如果我就是想知道内部路径呢？
+    </div>
+  </div>
+  <div class="char-row">
+    <div class="char-avatar isp"><i class="bi bi-building-fill"></i></div>
+    <div class="speech-bubble">
+      那得看你是什么身份了——
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:6px;margin:4px 0;font-size:13px">
+    <div style="padding:6px 10px;background:#FEF2F2;border-radius:6px;border-left:3px solid var(--red)">
+      <b>普通用户</b> → 客服听不懂你在问什么
+    </div>
+    <div style="padding:6px 10px;background:#FEF9C3;border-radius:6px;border-left:3px solid var(--orange)">
+      <b>企业专线</b> → 能要到拓扑图和 SLA，不含实时路径
+    </div>
+    <div style="padding:6px 10px;background:#F0FDF4;border-radius:6px;border-left:3px solid var(--green)">
+      <b>IDC/云厂商</b> → NOC 直通热线，紧急时可查
+    </div>
+    <div style="padding:6px 10px;background:#F3E8FF;border-radius:6px;border-left:3px solid var(--purple)">
+      <b>运营商内部</b> → IGP 工具直接查，全部透明
+    </div>
+  </div>
+</div>
+`
+},
+
+// ====== PAGE 7: 总结 ======
+{
+html: `
+<div class="panel">
+  <span class="panel-number">最终话</span>
+  <div class="char-row">
+    <div class="char-avatar packet anim-float"><i class="bi bi-box-seam-fill"></i></div>
+    <div class="speech-bubble">
+      冒险结束！记住这个核心——
+    </div>
+  </div>
+  <svg class="scene-svg" viewBox="0 0 480 140">
+    <rect x="20" y="10" width="440" height="120" rx="12" fill="#F0FDF4" stroke="#15803D" stroke-width="2"/>
+    <text x="240" y="38" text-anchor="middle" font-size="14" font-weight="700" fill="#15803D">互联网路由的两层世界</text>
+
+    <rect x="40" y="52" width="180" height="64" rx="8" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.5"/>
+    <text x="130" y="72" text-anchor="middle" font-size="12" font-weight="600" fill="#1D4ED8">BGP 世界</text>
+    <text x="130" y="90" text-anchor="middle" font-size="11" fill="#3B82F6">AS 之间 · 公开可见</text>
+    <text x="130" y="106" text-anchor="middle" font-size="10" fill="#60A5FA">像快递时刻表</text>
+
+    <rect x="260" y="52" width="180" height="64" rx="8" fill="#FEE2E2" stroke="#EF4444" stroke-width="1.5"/>
+    <text x="350" y="72" text-anchor="middle" font-size="12" font-weight="600" fill="#DC2626">IGP 世界</text>
+    <text x="350" y="90" text-anchor="middle" font-size="11" fill="#EF4444">AS 内部 · 运营商机密</text>
+    <text x="350" y="106" text-anchor="middle" font-size="10" fill="#F87171">像公司内部通行证</text>
+
+    <text x="233" y="88" font-size="18" fill="#1A1A2E">≠</text>
+  </svg>
+</div>
+
+<div class="panel">
+  <div class="key-point" style="background:linear-gradient(135deg,#EEEDFE,#CECBF6);border-color:var(--purple)">
+    <i class="bi bi-stars" style="color:var(--purple)"></i>
+    <b>一句话总结</b><br>
+    具体走哪条链路 = 运营商内部数据 = 外部不可见。<br>
+    这不是技术限制能绕过的，是设计上就这么定的——<br>
+    IGP 信息只在自治系统内部传递，<br>
+    对外的接口只有 BGP。
+  </div>
+  <div class="char-row" style="margin-top:8px">
+    <div class="char-avatar hero"><i class="bi bi-person-fill"></i></div>
+    <div class="speech-bubble">
+      明白了！AS 之间的事是公开的，<br>
+      AS 内部的事是秘密。<br>
+      想知道内部路径？<b>得找运营商</b>。
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:8px;font-size:20px;font-weight:900;letter-spacing:2px;color:var(--purple)">
+    ~ 全剧终 ~
+  </div>
+</div>
+`
+}
+];
+
+let currentPage = 0;
+
+function renderDots() {
+  const ind = document.getElementById('stepIndicator');
+  ind.innerHTML = pages.map((_, i) =>
+    `<div class="step-dot ${i < currentPage ? 'done' : i === currentPage ? 'active' : ''}"></div>`
+  ).join('');
+}
+
+function renderPage() {
+  const container = document.getElementById('comicPage');
+  container.innerHTML = pages[currentPage].html;
+  const panels = container.querySelectorAll('.panel');
+  panels.forEach((p, i) => {
+    setTimeout(() => p.classList.add('visible'), 100 + i * 200);
+  });
+  document.getElementById('pageInfo').textContent = `${currentPage + 1} / ${pages.length}`;
+  document.getElementById('btnPrev').disabled = currentPage === 0;
+  document.getElementById('btnNext').disabled = currentPage === pages.length - 1;
+  renderDots();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function goPage(dir) {
+  const next = currentPage + dir;
+  if (next < 0 || next >= pages.length) return;
+  currentPage = next;
+  renderPage();
+}
+
+renderPage();
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') goPage(1);
+  if (e.key === 'ArrowLeft') goPage(-1);
+});
+</script>
+</body>
+</html>
