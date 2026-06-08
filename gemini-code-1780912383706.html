@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>企业级区块链资金图谱可视化编辑系统</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        :root {
+            --bg-main: #0f172a;
+            --bg-panel: #1e293b;
+            --border-color: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --theme-color: #38bdf8;
+            --theme-hover: #0284c7;
+        }
+
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg-main); color: var(--text-main); }
+        
+        /* 顶部豪华菜单工具栏 */
+        #menu-bar {
+            position: absolute; top: 0; left: 0; width: 100%; height: 48px;
+            background: var(--bg-panel); border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; justify-content: space-between; padding: 0 20px; box-sizing: border-box; z-index: 10;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+        }
+        .logo-area { font-size: 14px; font-weight: bold; color: var(--theme-color); display: flex; align-items: center; gap: 8px; }
+        .menu-groups { display: flex; gap: 15px; }
+        .menu-btn {
+            background: #273549; border: 1px solid var(--border-color); color: var(--text-main);
+            padding: 5px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; gap: 4px;
+        }
+        .menu-btn:hover { background: var(--theme-hover); border-color: var(--theme-color); }
+        .select-layout { background: #273549; border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; }
+
+        /* 左侧快捷操作看板 */
+        #info-panel {
+            position: absolute; top: 68px; left: 20px; background: rgba(30, 41, 59, 0.85); backdrop-filter: blur(8px);
+            padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); width: 240px; z-index: 10;
+        }
+        #info-panel h4 { margin: 0 0 8px 0; font-size: 13px; color: var(--theme-color); }
+        .help-item { font-size: 11px; color: var(--text-muted); line-height: 1.6; margin-bottom: 4px; }
+
+        /* 画布与SVG元素定义 */
+        svg { width: 100vw; height: 100vh; padding-top: 48px; box-sizing: border-box; }
+        .g-link { fill: none; stroke: #475569; stroke-width: 3px; cursor: pointer; transition: stroke 0.2s; }
+        .g-link:hover, .g-link.selected { stroke: var(--theme-color) !important; }
+        .link-text { font-size: 11px; fill: #64748b; text-anchor: middle; cursor: pointer; user-select: none; font-weight: bold; background: #000; }
+        
+        .g-node { cursor: move; }
+        .g-node circle { stroke-width: 2px; fill: #1e3a8a; stroke: #3b82f6; transition: all 0.2s; }
+        .g-node:hover circle, .g-node.selected circle { stroke: var(--theme-color) !important; stroke-width: 4px; filter: drop-shadow(0 0 8px var(--theme-color)); }
+        .node-text { font-size: 12px; fill: #f8fafc; font-weight: 500; }
+        .node-subtext { font-size: 10px; fill: var(--text-muted); }
+
+        /* 🔬 核心：悬停高级提示框 (纯只读展示) */
+        .hover-tooltip {
+            position: absolute; background: rgba(15, 23, 42, 0.95); border: 1px solid var(--theme-color);
+            color: #fff; padding: 12px; border-radius: 6px; font-size: 11px; z-index: 100; display: none;
+            pointer-events: none; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5); line-height: 1.6; min-width: 180px;
+        }
+        .tooltip-row { display: flex; justify-content: space-between; margin-bottom: 4px; border-bottom: 1px solid #223147; padding-bottom: 2px; }
+        .tooltip-label { color: var(--text-muted); margin-right: 15px; }
+        .tooltip-val { color: #f8fafc; font-weight: 500; }
+
+        /* ✍️ 核心：独立双击高级属性编辑器弹窗 */
+        .edit-modal {
+            position: absolute; background: #1e293b; border: 1px solid var(--border-color); border-radius: 8px;
+            padding: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7); z-index: 200; display: none; width: 280px;
+        }
+        .modal-header { font-size: 13px; color: var(--theme-color); font-weight: bold; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 6px; }
+        .modal-body { max-height: 260px; overflow-y: auto; padding-right: 4px; }
+        .modal-field { margin-bottom: 10px; }
+        .modal-field label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .modal-field input { width: 100%; background: #0f172a; border: 1px solid var(--border-color); color: #fff; padding: 6px; border-radius: 4px; font-size: 12px; box-sizing: border-box; }
+        .modal-field input:focus { border-color: var(--theme-color); outline: none; }
+        .modal-footer { text-align: right; margin-top: 14px; display: flex; justify-content: flex-end; gap: 8px; }
+        .m-btn { padding: 5px 14px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; font-weight: 500; }
+        .m-btn.save { background: #0284c7; color: white; }
+        .m-btn.cancel { background: #475569; color: #e2e8f0; }
+    </style>
+</head>
+<body>
+
+    <div id="menu-bar">
+        <div class="logo-area">📊 Blockchain Atlas Studio <span style="font-size: 10px; background: #3b82f6; color: white; padding: 2px 6px; border-radius: 10px;">v2.0</span></div>
+        <div class="menu-groups">
+            <button class="menu-btn" onclick="clearCanvas()">🗑️ 清空画布</button>
+            <button class="menu-btn" onclick="addNewNodeManual()">➕ 添加节点</button>
+            <span style="color: var(--border-color)">|</span>
+            <span style="font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                ⚙️ 预置算法布局:
+                <select class="select-layout" id="layoutSelect" onchange="triggerLayout(this.value)">
+                    <option value="free">自由拖拽布局</option>
+                    <option value="circular">圆形环状布局</option>
+                    <option value="hierarchical">数据流向(层级)布局</option>
+                </select>
+            </span>
+            <span style="color: var(--border-color)">|</span>
+            <button class="menu-btn" style="background: #047857;" onclick="exportJSON()">💾 导出数据</button>
+        </div>
+    </div>
+
+    <div id="info-panel">
+        <h4>💡 操作指南</h4>
+        <div class="help-item">👀 <b>鼠标悬停</b>：查看隐藏高级Tooltip字段</div>
+        <div class="help-item">⚡ <b>双击元素</b>：编辑Tooltip中的扩展属性</div>
+        <div class="help-item">🟢 <b>双击空白</b>：就地快捷创建新账户</div>
+        <div class="help-item">🟠 <b>节点连线</b>：依次点击两个钱包节点</div>
+        <div class="help-item">🔴 <b>删除选定</b>：按下 Delete 或 Backspace</div>
+    </div>
+
+    <div id="hover-tooltip" class="hover-tooltip"></div>
+
+    <div id="edit-modal" class="edit-modal">
+        <div class="modal-header" id="modal-title">高级属性编辑器</div>
+        <div class="modal-body" id="modal-fields">
+            </div>
+        <div class="modal-footer">
+            <button class="m-btn cancel" onclick="closeModal()">取消</button>
+            <button class="m-btn save" id="modal-save-btn">保存变更</button>
+        </div>
+    </div>
+
+    <svg id="canvas"></svg>
+
+    <script>
+        const width = window.innerWidth, height = window.innerHeight;
+
+        // --- 1. 初始化复杂商业数据底座 ---
+        // 节点自带 tooltipData，用于存储无需渲染在画布图标上的深层信息
+        let nodes = [
+            { id: "addr_01", label: "交易所热钱包", sub: "Binance_TRON", x: width/2 - 250, y: height/2, tooltipData: { "风险评级": "低风险", "持有资产": "45,000,000 USDT", "最后活跃": "2026-06-08", "标签备注": "充值主节点" } },
+            { id: "addr_02", label: "可疑洗钱账户", sub: "TX9qvC...MCMQ", x: width/2, y: height/2 - 100, tooltipData: { "风险评级": "高危", "持有资产": "12,401 USDT", "防洗钱警报": "频繁小额混币", "归属地": "未知匿名" } },
+            { id: "addr_03", label: "分流混币合约", sub: "TR7NHw...A6m", x: width/2 + 250, y: height/2, tooltipData: { "风险评级": "中风险", "类型": "智能合约(Contract)", "代码开源": "是", "总质押量": "1.2B" } }
+        ];
+
+        let links = [
+            { source: "addr_01", target: "addr_02", amount: "50,000 USDT", tooltipData: { "交易哈希": "0x89abcdef...", "手续费": "12.5 TRX", "区块高度": "84,910,233" } },
+            { source: "addr_02", target: "addr_03", amount: "48,900 USDT", tooltipData: { "交易哈希": "0x12345678...", "手续费": "24.1 TRX", "区块高度": "84,910,412" } }
+        ];
+
+        let selectedNode = null, selectedLink = null, sourceNodeForLink = null, currentEditingTarget = null;
+
+        // --- 2. D3 画布基础脚手架 ---
+        const svg = d3.select("#canvas");
+        const container = svg.append("g").attr("class", "main-container");
+        
+        const zoomBehavior = d3.zoom()
+            .scaleExtent([0.1, 5])
+            .on("zoom", (event) => { container.attr("transform", event.transform); hideHoverTooltip(); });
+        svg.call(zoomBehavior).on("dblclick.zoom", null);
+
+        // SVG 箭头标头
+        svg.append("defs").append("marker")
+            .attr("id", "arrow").attr("viewBox", "0 -5 10 10").attr("refX", 26).attr("refY", 0)
+            .attr("markerWidth", 6).attr("markerHeight", 6).attr("orient", "auto")
+            .append("path").attr("d", "M0,-4L10,0L0,4").attr("fill", "#475569");
+
+        const linkLayer = container.append("g");
+        const nodeLayer = container.append("g");
+
+        // 维持连接线拓扑数据结构的静态模拟器
+        const simulation = d3.forceSimulation(nodes).force("link", d3.forceLink(links).id(d => d.id)).on("tick", ticked);
+
+        const tooltipDiv = d3.select("#hover-tooltip");
+        const modalDiv = d3.select("#edit-modal");
+        modalDiv.on("mousedown mouseup click dblclick", e => e.stopPropagation()); // 切断弹窗事件穿透
+
+        // --- 3. 核心动态可视化渲染引擎 ---
+        function updateGraph() {
+            // 默认锁定绝对坐标，防止受非算法干扰
+            nodes.forEach(d => { if (d.x !== undefined) d.fx = d.x; if (d.y !== undefined) d.fy = d.y; });
+
+            // [连线图层处理]
+            const linkSelection = linkLayer.selectAll(".link-group").data(links, d => `${d.source.id || d.source}-${d.target.id || d.target}`);
+            linkSelection.exit().remove();
+            const linkEnter = linkSelection.enter().append("g").attr("class", "link-group");
+            
+            linkEnter.append("line").attr("class", "g-link").attr("marker-end", "url(#arrow)")
+                .on("click", (event, d) => { event.stopPropagation(); clearSelection(); selectedLink = d; updateGraph(); })
+                .on("mousemove", (event, d) => {
+                    let htmlStr = `<b>基本流向:</b> ${d.amount}<br/>`;
+                    for(let key in d.tooltipData) htmlStr += `<b>${key}:</b> ${d.tooltipData[key]}<br/>`;
+                    showHoverTooltip(event, htmlStr);
+                })
+                .on("mouseleave", hideHoverTooltip)
+                .on("dblclick", (event, d) => openAdvancedEditor(event, d, 'link'));
+
+            linkEnter.append("text").attr("class", "link-text").attr("dy", -6).text(d => d.amount);
+            const allLinks = linkEnter.merge(linkSelection);
+            allLinks.classed("selected", d => d === selectedLink);
+
+            // [节点图层处理]
+            const nodeSelection = nodeLayer.selectAll(".g-node").data(nodes, d => d.id);
+            nodeSelection.exit().remove();
+            const nodeEnter = nodeSelection.enter().append("g").attr("class", "g-node")
+                .on("click", handleNodeClick)
+                .on("mousemove", (event, d) => {
+                    let htmlStr = `<div style="color:#38bdf8;font-weight:bold;margin-bottom:4px;">${d.label}</div>`;
+                    htmlStr += `<div class="tooltip-row"><span class="tooltip-label">地址:</span><span class="tooltip-val">${d.sub}</span></div>`;
+                    for(let key in d.tooltipData){
+                        htmlStr += `<div class="tooltip-row"><span class="tooltip-label">${key}:</span><span class="tooltip-val">${d.tooltipData[key]}</span></div>`;
+                    }
+                    showHoverTooltip(event, htmlStr);
+                })
+                .on("mouseleave", hideHoverTooltip)
+                .on("dblclick", (event, d) => openAdvancedEditor(event, d, 'node'))
+                .call(d3.drag().on("start", dragStart).on("drag", dragging).on("end", dragEnd));
+
+            nodeEnter.append("circle").attr("r", 20);
+            nodeEnter.append("text").attr("class", "node-text").attr("dx", 26).attr("dy", 4);
+            nodeEnter.append("text").attr("class", "node-subtext").attr("dx", 26).attr("dy", 18);
+
+            const allNodes = nodeEnter.merge(nodeSelection);
+            allNodes.each(function(d) {
+                const el = d3.select(this);
+                el.classed("selected", d === selectedNode);
+                el.select(".node-text").text(d.label);
+                el.select(".node-subtext").text(d.sub);
+            });
+
+            simulation.nodes(nodes); simulation.force("link").links(links);
+            simulation.alpha(0.1).restart();
+            window.activeLinks = allLinks; window.activeNodes = allNodes;
+        }
+
+        function ticked() {
+            if (window.activeLinks) {
+                window.activeLinks.select(".g-link").attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+                window.activeLinks.select(".link-text").attr("x", d => (d.source.x + d.target.x) / 2).attr("y", d => (d.source.y + d.target.y) / 2);
+            }
+            if (window.activeNodes) window.activeNodes.attr("transform", d => `translate(${d.x},${d.y})`);
+        }
+
+        // --- ⚙️ 核心逻辑：双击弹出高级字典属性编辑器 ---
+        function openAdvancedEditor(event, d, type) {
+            event.stopPropagation(); hideHoverTooltip();
+            currentEditingTarget = d;
+            const fieldsContainer = d3.select("#modal-fields");
+            fieldsContainer.html(""); 
+
+            if(type === 'node') {
+                d3.select("#modal-title").text("🏷️ 编辑节点高级字段");
+                // 基础呈现字段
+                fieldsContainer.append("div").attr("class", "modal-field").html(`<label>图谱可视名称</label><input type="text" id="m-base-label" value="${d.label}">`);
+                fieldsContainer.append("div").attr("class", "modal-field").html(`<label>图谱副标题/地址</label><input type="text" id="m-base-sub" value="${d.sub}">`);
+                // 专属 Tooltip 隐藏非呈现字典字段
+                for(let key in d.tooltipData) {
+                    fieldsContainer.append("div").attr("class", "modal-field")
+                        .html(`<label>Tooltip提示：${key}</label><input type="text" data-key="${key}" class="m-custom-field" value="${d.tooltipData[key]}">`);
+                }
+            } else {
+                d3.select("#modal-title").text("🔗 编辑连线高级字段");
+                fieldsContainer.append("div").attr("class", "modal-field").html(`<label>流向显示金额</label><input type="text" id="m-base-amount" value="${d.amount}">`);
+                for(let key in d.tooltipData) {
+                    fieldsContainer.append("div").attr("class", "modal-field")
+                        .html(`<label>Tooltip提示：${key}</label><input type="text" data-key="${key}" class="m-custom-field" value="${d.tooltipData[key]}">`);
+                }
+            }
+
+            modalDiv.style("left", Math.min(event.pageX, window.innerWidth - 300) + "px")
+                    .style("top", Math.min(event.pageY, window.innerHeight - 340) + "px")
+                    .style("display", "block");
+
+            d3.select("#modal-save-btn").on("click", () => saveAdvancedData(type));
+        }
+
+        function saveAdvancedData(type) {
+            if(!currentEditingTarget) return;
+            if(type === 'node') {
+                currentEditingTarget.label = document.getElementById("m-base-label").value;
+                currentEditingTarget.sub = document.getElementById("m-base-sub").value;
+            } else {
+                currentEditingTarget.amount = document.getElementById("m-base-amount").value;
+            }
+            // 批量同步自定义高级字典字段
+            document.querySelectorAll(".m-custom-field").forEach(input => {
+                const key = input.getAttribute("data-key");
+                currentEditingTarget.tooltipData[key] = input.value;
+            });
+            closeModal(); updateGraph();
+        }
+
+        function showHoverTooltip(event, html) { if (modalDiv.style("display") === "block") return; tooltipDiv.html(html).style("left", (event.pageX + 15) + "px").style("top", (event.pageY + 15) + "px").style("display", "block"); }
+        function hideHoverTooltip() { tooltipDiv.style("display", "none"); }
+        function closeModal() { modalDiv.style("display", "none"); currentEditingTarget = null; }
+
+        // --- 🧭 核心能力拓展：三大内置算法布局切换 ---
+        function triggerLayout(layoutType) {
+            closeModal(); clearSelection();
+            
+            if (layoutType === 'free') {
+                // 自由布局：断开锁定让其微调，或保持绝对不动
+                nodes.forEach(d => { d.fx = d.x; d.fy = d.y; });
+            } 
+            else if (layoutType === 'circular') {
+                // 1. 圆形环状布局算法
+                const radius = Math.min(width, height) * 0.3;
+                const centerX = width / 2;
+                const centerY = height / 2;
+                nodes.forEach((node, index) => {
+                    const angle = (index / nodes.length) * 2 * Math.PI;
+                    node.x = centerX + radius * Math.cos(angle);
+                    node.y = centerY + radius * Math.sin(angle);
+                    node.fx = node.x; node.fy = node.y; // 算完后锁死绝对位置
+                });
+            } 
+            else if (layoutType === 'hierarchical') {
+                // 2. 数据流向层级拓扑算法 (根据上下游流向关系自动计算横向层级)
+                // 计算每个节点的入度层级
+                const levelMap = {};
+                nodes.forEach(n => levelMap[n.id] = 0);
+                
+                // 简单跑 3 轮松弛法计算依赖拓扑深层等级
+                for(let i=0; i<3; i++) {
+                    links.forEach(l => {
+                        const sId = l.source.id || l.source;
+                        const tId = l.target.id || l.target;
+                        if(levelMap[tId] <= levelMap[sId]) { levelMap[tId] = levelMap[sId] + 1; }
+                    });
+                }
+
+                // 将具有相同层级的节点分组排放
+                const groups = {};
+                nodes.forEach(n => {
+                    const lvl = levelMap[n.id];
+                    if(!groups[lvl]) groups[lvl] = [];
+                    groups[lvl].push(n);
+                });
+
+                const maxLvl = d3.max(Object.keys(groups).map(Number));
+                const colWidth = width / (maxLvl + 2);
+
+                Object.keys(groups).forEach(lvl => {
+                    const groupNodes = groups[lvl];
+                    const rowHeight = height / (groupNodes.length + 1);
+                    groupNodes.forEach((node, idx) => {
+                        node.x = colWidth * (Number(lvl) + 1);
+                        node.y = rowHeight * (idx + 1);
+                        node.fx = node.x; node.fy = node.y;
+                    });
+                });
+            }
+            
+            // 动效平滑过渡更新
+            updateGraph();
+            // 让视图中央对齐过渡
+            d3.select(".main-container").transition().duration(500).attr("transform", d3.zoomIdentity);
+            svg.call(zoomBehavior.transform, d3.zoomIdentity);
+        }
+
+        // --- 🛠️ 菜单栏及常规交互模块 ---
+        function clearCanvas() { nodes = []; links = []; clearSelection(); closeModal(); updateGraph(); }
+        
+        function addNewNodeManual() {
+            const newId = "addr_" + Date.now().toString().slice(-6);
+            nodes.push({ id: newId, label: "手动新增账户", sub: "T...", x: width/2, y: height/2, tooltipData: { "风险评级": "未定义", "业务来源": "控制台创建" } });
+            updateGraph();
+        }
+
+        function exportJSON() {
+            const output = JSON.stringify({ nodes, links }, null, 2);
+            const blob = new Blob([output], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = `atlas_export_${Date.now()}.json`;
+            a.click();
+        }
+
+        // 双击空白处快捷建点
+        svg.on("dblclick", function(event) {
+            if (event.target.tagName !== "svg") return;
+            const transform = d3.zoomTransform(svg.node());
+            const [pX, pY] = d3.pointer(event);
+            const realX = (pX - transform.x) / transform.k;
+            const realY = (pY - transform.y) / transform.k;
+            const newId = "addr_" + Date.now().toString().slice(-6);
+            
+            nodes.push({ id: newId, label: "快捷新商户", sub: "T...", x: realX, y: realY, tooltipData: { "风险评级": "低", "创建方式": "画布双击" } });
+            updateGraph();
+        });
+
+        function handleNodeClick(event, d) {
+            event.stopPropagation(); closeModal();
+            if (!sourceNodeForLink) { sourceNodeForLink = d; selectedNode = d; } 
+            else if (sourceNodeForLink === d) { clearSelection(); } 
+            else {
+                links.push({ source: sourceNodeForLink.id, target: d.id, amount: "0 USDT", tooltipData: { "交易哈希": "未生成" } });
+                clearSelection();
+            }
+            updateGraph();
+        }
+
+        function dragStart(event, d) { hideHoverTooltip(); if (!event.active) simulation.alphaTarget(0.1).restart(); d.fx = d.x; d.fy = d.y; }
+        function dragging(event, d) { d.fx = event.x; d.fy = event.y; d.x = event.x; d.y = event.y; }
+        function dragEnd(event, d) { if (!event.active) simulation.alphaTarget(0); }
+        function clearSelection() { selectedNode = null; selectedLink = null; sourceNodeForLink = null; }
+        
+        d3.select(window).on("keydown", function(event) {
+            if (event.key === "Delete" || event.key === "Backspace") {
+                if (selectedNode) {
+                    nodes = nodes.filter(n => n !== selectedNode);
+                    links = links.filter(l => l.source.id !== selectedNode.id && l.target.id !== selectedNode.id);
+                    clearSelection(); updateGraph();
+                } else if (selectedLink) {
+                    links = links.filter(l => l !== selectedLink);
+                    clearSelection(); updateGraph();
+                }
+            }
+        });
+
+        // 初始化一记
+        updateGraph();
+    </script>
+</body>
+</html>
